@@ -207,6 +207,7 @@ const (
 	TLVSRPolicyCPathIDValueLength           uint16 = 28
 	TLVSRPolicyCPathPreferenceValueLength   uint16 = 4
 	TLVColorValueLength                     uint16 = 4
+	TLVTePathBindingValueLength 		uint16 = 7
 )
 
 // Juniper specific TLV (deprecated)
@@ -250,6 +251,7 @@ var tlvMap = map[TLVType]func() TLVInterface{
 	TLVSRPolicyCPathID:         func() TLVInterface { return &SRPolicyCandidatePathIdentifier{} },
 	TLVSRPolicyCPathPreference: func() TLVInterface { return &SRPolicyCandidatePathPreference{} },
 	TLVColor:                   func() TLVInterface { return &Color{} },
+	TLVTePathBinding:           func() TLVInterface { return &TEPathBinding{} },
 }
 
 type StatefulPCECapability struct {
@@ -1472,6 +1474,60 @@ func (tlv *Color) Type() TLVType {
 
 func (tlv *Color) Len() uint16 {
 	return TLVValueOffset + TLVColorValueLength
+}
+
+type TEPathBinding struct {
+	Label uint32
+}
+
+func (tlv *TEPathBinding) DecodeFromBytes(data []byte) error {
+	valueLen, err := decodeTLVLength(data, true)
+	if err != nil {
+		return fmt.Errorf("TEPathBinding: %w", err)
+	}
+	if valueLen < int(TLVTePathBindingValueLength) {
+		return fmt.Errorf("TEPathBinding: invalid value length %d", valueLen)
+	}
+	// BT(1) flags(1) reserved(2) label(4); the label occupies the high 20 bits.
+	value := data[TLVValueOffset:]
+	if len(value) < 8 {
+		return fmt.Errorf("TEPathBinding: truncated value")
+	}
+	if bt := value[0]; bt != 0 {
+		return fmt.Errorf("TEPathBinding: unsupported binding type %d", bt)
+	}
+	tlv.Label = binary.BigEndian.Uint32(value[4:8]) >> 12
+	return nil
+}
+
+func (tlv *TEPathBinding) Serialize() []byte {
+	// BT=0 (MPLS), flags=0, reserved=0, then the label in the high 20 bits.
+	value := make([]byte, 8)
+	binary.BigEndian.PutUint32(value[4:], tlv.Label<<12)
+
+	return AppendByteSlices(
+		Uint16ToByteSlice(tlv.Type()),
+		Uint16ToByteSlice(TLVTePathBindingValueLength),
+		value,
+	)
+}
+
+func (tlv *TEPathBinding) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	if tlv == nil {
+		return nil
+	}
+
+	enc.AddUint32("binding_sid", tlv.Label)
+	return nil
+}
+
+func (tlv *TEPathBinding) Type() TLVType {
+	return TLVTePathBinding
+}
+
+func (tlv *TEPathBinding) Len() uint16 {
+	// 4-byte TLV header + 8-byte value area (length field 7, padded to 8).
+	return TLVValueOffset + 8
 }
 
 type UndefinedTLV struct {

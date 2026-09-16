@@ -1585,7 +1585,8 @@ func (o *VendorInformationObject) Preference() uint32 {
 }
 
 type optParams struct {
-	pccType PccType
+	pccType    PccType
+	bindingSID *uint32
 }
 
 type Opt func(*optParams)
@@ -1593,5 +1594,14 @@ type Opt func(*optParams)
 func VendorSpecific(pt PccType) Opt {
 	return func(op *optParams) {
 		op.pccType = pt
+	}
+}
+
+// BindingSID attaches an RFC 9604 TE-PATH-BINDING (MPLS) TLV carrying the given
+// binding-SID label to a PCInitiate's LSP object, so the head-end's pathd
+// programs a binding-SID -> segment-list LFIB entry for the policy.
+func BindingSID(label uint32) Opt {
+	return func(op *optParams) {
+		op.bindingSID = &label
 	}
 }

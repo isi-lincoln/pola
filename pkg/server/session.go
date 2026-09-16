@@ -495,7 +495,11 @@ func (ss *Session) SendOpen() error {
 }
 
 func (ss *Session) SendPCInitiate(srPolicy table.SRPolicy, lspDelete bool) error {
-	pcinitiateMessage, err := pcep.NewPCInitiateMessage(ss.srpIDHead, srPolicy.Name, lspDelete, srPolicy.PlspID, srPolicy.SegmentList, srPolicy.Color, srPolicy.Preference, srPolicy.SrcAddr, srPolicy.DstAddr, pcep.VendorSpecific(ss.pccType))
+	opts := []pcep.Opt{pcep.VendorSpecific(ss.pccType)}
+	if srPolicy.BindingSID != 0 && !lspDelete {
+		opts = append(opts, pcep.BindingSID(srPolicy.BindingSID))
+	}
+	pcinitiateMessage, err := pcep.NewPCInitiateMessage(ss.srpIDHead, srPolicy.Name, lspDelete, srPolicy.PlspID, srPolicy.SegmentList, srPolicy.Color, srPolicy.Preference, srPolicy.SrcAddr, srPolicy.DstAddr, opts...)
 	if err != nil {
 		return err
 	}

@@ -484,6 +484,9 @@ func NewPCInitiateMessage(srpID uint32, lspName string, lspDelete bool, plspID u
 	if m.LSPObject, err = NewLSPObject(lspName, &color, 0); err != nil {
 		return nil, err
 	}
+	if opts.bindingSID != nil {
+		m.LSPObject.TLVs = append(m.LSPObject.TLVs, &TEPathBinding{Label: *opts.bindingSID})
+	}
 	if m.EndpointsObject, err = NewEndpointsObject(dstAddr, srcAddr); err != nil {
 		return nil, err
 	}

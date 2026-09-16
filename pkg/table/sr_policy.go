@@ -31,6 +31,7 @@ type SRPolicy struct {
 	Preference  uint32
 	LSPID       uint16
 	State       PolicyState
+	BindingSID  uint32
 }
 
 func NewSRPolicy(
